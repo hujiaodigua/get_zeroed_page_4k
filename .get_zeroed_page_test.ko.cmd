@@ -1,0 +1,1 @@
+cmd_/home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.ko := ld -r  -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.ko /home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.o /home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.mod.o;  true

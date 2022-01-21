@@ -1,0 +1,1 @@
+cmd_/home/yee/Downloads/get_zeroed_page/Module.symvers := sed 's/\.ko$$/\.o/' /home/yee/Downloads/get_zeroed_page/modules.order | scripts/mod/modpost -m -a  -o /home/yee/Downloads/get_zeroed_page/Module.symvers -e -i Module.symvers   -T -

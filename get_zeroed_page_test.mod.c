@@ -29,13 +29,13 @@ static const struct modversion_info ____versions[]
 __used __section("__versions") = {
 	{ 0xf2600751, "module_layout" },
 	{ 0x4302d0eb, "free_pages" },
-	{ 0x92997ed8, "_printk" },
 	{ 0x4c9d28b0, "phys_base" },
 	{ 0xf09b5d9a, "get_zeroed_page" },
+	{ 0x92997ed8, "_printk" },
 	{ 0xbdfb6dbb, "__fentry__" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "88E7292589C2638B737A9A2");
+MODULE_INFO(srcversion, "6BF71FBD232814EBF145EAB");

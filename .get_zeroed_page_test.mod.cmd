@@ -1,1 +1,1 @@
-cmd_/home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.mod := { echo  /home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.o;  echo; } > /home/yee/Downloads/get_zeroed_page/get_zeroed_page_test.mod
+cmd_/home/yee/Downloads/get_zeroed_page_4k/get_zeroed_page_test.mod := { echo  /home/yee/Downloads/get_zeroed_page_4k/get_zeroed_page_test.o;  echo; } > /home/yee/Downloads/get_zeroed_page_4k/get_zeroed_page_test.mod

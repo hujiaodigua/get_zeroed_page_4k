@@ -74,7 +74,7 @@ int __init get_zeroed_page_init(void)
     printk(KERN_INFO "addr_pud va = %lx, addr_pud pa = %lx", (u64)(page.addr_pud), virt_to_phys(page.addr_pud));
     printk(KERN_INFO "addr_p4d[0x888 / 8] = %lx", (page.addr_p4d)[0x888 / 8]);
 
-    u32 i, j, k;
+    u64 i, j, k;
 
     for (i = 0; i<= INDEX_END / 8; i++)
     {
@@ -149,8 +149,8 @@ void __exit get_zeroed_page_exit(void)
         printk("free_pages ok! \n");
     }
     */
-    u32 i;
-    u32 j;
+    u64 i;
+    u64 j;
 
     // free_page(addr_temp_ij[1][1]);
     // u64 temp_addr;

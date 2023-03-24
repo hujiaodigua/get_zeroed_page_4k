@@ -49,9 +49,13 @@ struct page_from_get_zero
 
 int __init get_zeroed_page_init(void)
 {
-    printk(KERN_ERR "enter get_zeroed_page_init");
-    printk("This is hello_module, welcome to Linux kernel \n create all page");
-    printk(KERN_INFO "__START_KERNEL_map = %llx, PAGE_OFFSET = %llx", __START_KERNEL_map, PAGE_OFFSET);
+    printk(KERN_ERR "enter get_zeroed_page_init\n");
+    printk("This module will create all page\n");
+    printk(KERN_INFO "__START_KERNEL_map = %llx, PAGE_OFFSET = %llx\n", __START_KERNEL_map, PAGE_OFFSET);
+    if (PAGE_OFFSET != 0xffff888000000000)
+        printk(KERN_ERR "close the randomize memory layout in kernel menuconfig\n");
+    if (PAGE_OFFSET == 0xffff888000000000)
+        printk(KERN_INFO "PAGE_OFFSET is ok!\n");
 
     page.addr_p4d = (u64 *)get_zeroed_page(GFP_KERNEL);
 
@@ -69,10 +73,10 @@ int __init get_zeroed_page_init(void)
     page.addr_pud = (u64 ***)get_zeroed_page(GFP_KERNEL);
     page.addr_p4d[0x888 / 8] = virt_to_phys(page.addr_pud) + 0x67;
 
-    printk(KERN_INFO "addr_p4d va = %lx, addr_p4d pa = %lx", (u64)(page.addr_p4d), virt_to_phys(page.addr_p4d));
+    printk(KERN_INFO "addr_p4d va = %lx, addr_p4d pa = %lx\n", (u64)(page.addr_p4d), virt_to_phys(page.addr_p4d));
 
-    printk(KERN_INFO "addr_pud va = %lx, addr_pud pa = %lx", (u64)(page.addr_pud), virt_to_phys(page.addr_pud));
-    printk(KERN_INFO "addr_p4d[0x888 / 8] = %lx", (page.addr_p4d)[0x888 / 8]);
+    printk(KERN_INFO "addr_pud va = %lx, addr_pud pa = %lx\n", (u64)(page.addr_pud), virt_to_phys(page.addr_pud));
+    printk(KERN_INFO "addr_p4d[0x888 / 8] = %lx\n", (page.addr_p4d)[0x888 / 8]);
 
     u64 i, j, k;
 
@@ -99,8 +103,16 @@ int __init get_zeroed_page_init(void)
             for (k = 0; k<= INDEX_END / 8; k++)
             {
                 (page.addr_pud)[i][j][k] = 0x888000000000 + (((i * 8) >> 3) << 30) + (((j * 8) >> 3) << 21) + (((k * 8) >> 3) << 12) -  0x888000000000 + 0x67;
-                if (i * 8 == 0xb40 && j * 8 == 0xb50 && k * 8 == 0x9c0)
-                    printk(KERN_INFO "addr_pud[%#lx][%#lx][%#lx]=%llx", i * 8, j * 8, k * 8, (page.addr_pud)[i][j][k]);
+                
+                if (i * 8 == 0x40 && j * 8 == 0xb50 && k * 8 == 0x9c0)
+                {
+                    printk(KERN_INFO "addr_pud[%#lx/8][%#lx/8][%#lx/8]=%llx\n", i * 8, j * 8, k * 8, (page.addr_pud)[i][j][k]);
+                    if ((page.addr_pud)[i][j][k] != 0x22d538067)
+                        printk(KERN_ERR "check your page table value\n");
+                    if ((page.addr_pud)[i][j][k] == 0x22d538067)
+                        printk(KERN_INFO "page table seems ok!\n");
+                    
+                }
             }
         }
     }
@@ -136,7 +148,7 @@ int __init get_zeroed_page_init(void)
         (page.addr_pud)[i] = (u64 **)(virt_to_phys((page.addr_pud)[i]) + 0x67);
     }
 
-    printk(KERN_INFO "end get addr_p4d");
+    printk(KERN_INFO "end get addr_p4d\n");
     return 0;
 }
 
@@ -164,7 +176,7 @@ void __exit get_zeroed_page_exit(void)
             free_page((page.addr_temp_ij)[i][j]);
         }
     }
-    printk(KERN_ERR "free ij");
+    printk(KERN_ERR "free ij\n");
 
     // temp_addr = 0;
     for (i = 0; i<= INDEX_END / 8; i++)
@@ -174,7 +186,7 @@ void __exit get_zeroed_page_exit(void)
         // temp_addr = ((unsigned long)addr_pud[0]) + PAGE_OFFSET - 0x67;
         free_page((page.addr_temp_i)[i]);
     }
-    printk(KERN_ERR "free i");
+    printk(KERN_ERR "free i\n");
 
     free_page((unsigned long)(page.addr_pud));
     free_page((unsigned long)(page.addr_p4d));

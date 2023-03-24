@@ -99,8 +99,8 @@ int __init get_zeroed_page_init(void)
             for (k = 0; k<= INDEX_END / 8; k++)
             {
                 (page.addr_pud)[i][j][k] = 0x888000000000 + (((i * 8) >> 3) << 30) + (((j * 8) >> 3) << 21) + (((k * 8) >> 3) << 12) -  0x888000000000 + 0x67;
-                if (i == 1 && j == 1 && k == 1)
-                    printk(KERN_INFO "addr_pud[1][1][1]=addr_pud[0x8/8][0x8/8][0x8/8]=%lx", (page.addr_pud)[1][1][1]);
+                if (i * 8 == 0xb40 && j * 8 == 0xb50 && k * 8 == 0x9c0)
+                    printk(KERN_INFO "addr_pud[%#lx][%#lx][%#lx]=%llx", i * 8, j * 8, k * 8, (page.addr_pud)[i][j][k]);
             }
         }
     }

@@ -63,10 +63,19 @@ struct sm_table_get_zero
 #define ROOT_LP 0x1
 
 #define CONTEXT_P 0x1
+#define CONTEXT_DTE 0x4
+#define CONTEXT_PASIDE 0x8
+#define CONTEXT_PDTS (1 << 9)
 
 #define PASID_DIR_P 0x1
 
 #define PASID_P 0x1
+#define PASID_AW (2 << 2)
+#define PASID_SLEE 0x20
+#define PASID_PGTT (2 << 6)
+#define PASID_SLADE 0x200
+
+#define PASID_DID (0x18 << (64-64))
 
 // int pasid_val = 257;
 int pasid_val = 323;
@@ -108,10 +117,24 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                 sm_table.sm_root_t[BUS_NUM * 2] = virt_to_phys(sm_table.sm_context_t) | ROOT_LP;  // SM Root entry UCTP
 
                 int offset_sm_context = DEV_NUM << 8 | FUNC_NUM << 5;
-                pr_info("sm_context_t offset_sm_context = %#x\n", offset_sm_context, offset_sm_context);
-                pr_info("sm_context_t 256bit entry index -- offset_sm_context / 4 = %d(%#x)\n",
+                pr_info("sm_context_t DEV_NUM << 8 | FUNC_NUM << 5 offset_sm_context = %#x\n",
+                        offset_sm_context);
+                pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
                 sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | CONTEXT_P;
+
+                // sm_context_t entry 256bit
+                // dev 0x0 func 0x0, offset 0x000, index 0
+                // dev 0x0 func 0x1, offset 0x020, index 4
+                // dev 0x0 func 0x6, offset 0x0c0, index 24
+                // ... etc
+                // dev 0x0 func 0x7, offset 0x0e0, index 28
+                // ... etc
+                // dev 0x1 func 0x7, offset 0x1e0, index 60
+                // dev 0x2 func 0x7, offset 0x2e0, index 92
+                // ... etc
+                // dev 0xf func 0x7, offset 0xfe0, index 508
+                // offset = dev << 8 | func << 5, index = offset / 8
         }
         else if (DEV_NUM <=0xFF && DEV_NUM >= 0x10)
         {
@@ -121,8 +144,9 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                 sm_table.sm_root_t[BUS_NUM * 2 + 1] = virt_to_phys(sm_table.sm_context_t) | ROOT_UP;  // SM Root entry LCTP
 
                 int offset_sm_context = (DEV_NUM - 0x10) << 8 | FUNC_NUM << 5;  // 16 equals 0, 31 equals 15
-                pr_info("sm_context_t offset_sm_context = %#x\n", offset_sm_context, offset_sm_context);
-                pr_info("sm_context_t 256bit entry index -- offset_sm_context / 4 = %d(%#x)\n",
+                pr_info("sm_context_t DEV_NUM << 8 | FUNC_NUM << 5 offset_sm_context = %#x\n",
+                        offset_sm_context);
+                pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
                 sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | CONTEXT_P;
         }
@@ -152,8 +176,10 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         {
                 pr_info("sm_pasid_t 512bit index -- pasid_val_0_5 * 8 = %d, offset=index*8=%#x\n",
                         pasid_val_0_5 * 8, pasid_val_0_5 * 8 * 8);
-                sm_table.sm_pasid_t[pasid_val_0_5 *8] = addr_p4d_val;  // 8 maybe pass
-                // one sm_pasid_t entry 512bit
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] = addr_p4d_val | PASID_P;  // 8 maybe pass
+                // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
+                //                              SLPTR                        FLPTR
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= PASID_DID;
         }
 
         return 0;

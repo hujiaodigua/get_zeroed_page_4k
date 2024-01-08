@@ -52,30 +52,56 @@ struct sm_table_get_zero
         u64 *sm_pasid_t;
 }sm_table;
 
-#define INDEX_END 0xFF8
+#define INDEX_END  0xFF8
 
-#define BUS_NUM 2
-#define DEV_NUM 19  // dev 0-15 use lower context table, dev 16-31 use upper context table
-// #define DEV_NUM 12
-#define FUNC_NUM 1
+#define BUS_NUM  2
+#define DEV_NUM  19  // dev 0-15 use lower context table, dev 16-31 use upper context table
+// #define DEV_NUM  12
+#define FUNC_NUM  1
 
-#define ROOT_UP 0x1
-#define ROOT_LP 0x1
+#define ROOT_UP  0x1
+#define ROOT_LP  0x1
 
-#define CONTEXT_P 0x1
-#define CONTEXT_DTE 0x4
-#define CONTEXT_PASIDE 0x8
-#define CONTEXT_PDTS (1 << 9)
+// #define CONTEXT_P  0x1
+// #define CONTEXT_DTE  0x4
+// #define CONTEXT_PASIDE  0x8
+// #define CONTEXT_PDTS  (1 << 9)
+#define PASID_CONTEXT_P  0X1
+#define PASID_CONTEXT_DTE_SET  (1 << 2)
+#define PASID_CONTEXT_PASIDE  (1 << 3)
+#define PASID_CONTEXT_PRE_SET  (1 << 4)
+#define PASID_CONTEXT_PDTS_256  (1 << 9)
+#define PASID_CONTEXT_RID_PASID_RESERVED  (0 << (64-64))  // request without PASID will use RID_PASID val to walk PASID table
+#define PASID_CONTEXT_RID_PRIV_RESERVED  (0 << (84-64))
 
-#define PASID_DIR_P 0x1
+#define PASID_DIR_P  0x1
+#define PASID_DIR_FPD_RESERVED  (0 << 1)
 
-#define PASID_P 0x1
-#define PASID_AW (2 << 2)
-#define PASID_SLEE 0x20
-#define PASID_PGTT (2 << 6)
-#define PASID_SLADE 0x200
 
-#define PASID_DID (0x18 << (64-64))
+#define PASID_P  0x1
+#define PASID_AW  (2 << 2)
+#define PASID_SLEE_PREVENTED  (1 << 5)
+#define PASID_PGTT_FL_ONLY  (1 << 6)
+#define PASID_SLADE  (1 << 9)
+
+#define PASID_DID  (0x18 << (64-64))
+#define PASID_PWSNP  (1 << (87-64))
+#define PASID_PGSNP  (1 << (88-64))
+#define PASID_CD_ENABLE  (0 << (89-64))
+#define PASID_EMTE_IGNORED  (0 << (90-64))
+#define PASID_EMT_RESERVED  (0 << (91-64))
+#define PASID_PWT_RESERVED  (0 << (94-64))
+#define PASID_PCD_RESERVED  (0 << (95-64))
+
+#define PASID_SRE_RESERVED (0 << (128-128))
+#define PASID_ERE_RESERVED  (1 << (129-128))
+#define PASID_FLPM_4L  (0 << (130-128))
+#define PASID_WPE_RESERVED  (0 << (132-128))
+#define PASID_NXE_RESERVED  (0 << (133-128))
+#define PASID_SMPE_RESERVED  (0 << (134-128))
+#define PASID_EAFE_SET  (1 << (135-128))
+
+
 
 // int pasid_val = 257;
 int pasid_val = 323;
@@ -121,7 +147,7 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | CONTEXT_P;
+                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P;
 
                 // sm_context_t entry 256bit
                 // dev 0x0 func 0x0, offset 0x000, index 0
@@ -148,7 +174,7 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | CONTEXT_P;
+                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P;
         }
 
         pr_info("pasid_val = %d", pasid_val);
@@ -167,7 +193,8 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         {
                 pr_info("sm_pasid_dir_t 64bit index -- pasid_val_6_19 = %d, offset=index*8=%#x\n",
                         pasid_val_6_19, pasid_val_6_19 * 8);
-                sm_table.sm_pasid_dir_t[pasid_val_6_19] = virt_to_phys(sm_table.sm_pasid_t) | PASID_DIR_P;
+                sm_table.sm_pasid_dir_t[pasid_val_6_19] = virt_to_phys(sm_table.sm_pasid_t) |
+                                                          PASID_DIR_P | PASID_DIR_FPD_RESERVED;
                 // one sm_pasid_dir_t entry 64bit
         }
 
@@ -176,10 +203,23 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         {
                 pr_info("sm_pasid_t 512bit index -- pasid_val_0_5 * 8 = %d, offset=index*8=%#x\n",
                         pasid_val_0_5 * 8, pasid_val_0_5 * 8 * 8);
-                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] = addr_p4d_val | PASID_P;  // 8 maybe pass
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] = addr_p4d_val;  // *8 maybe pass
                 // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
                 //                              SLPTR                        FLPTR
-                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= PASID_DID;
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= (PASID_P | PASID_AW | PASID_SLEE_PREVENTED |
+                                                               PASID_PGTT_FL_ONLY | PASID_SLADE);
+
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= PASID_DID;  // DID 0x18 for test
+                //
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= (PASID_PWSNP | PASID_PGSNP |
+                                                               PASID_CD_ENABLE | PASID_EMTE_IGNORED |
+                                                               PASID_EMT_RESERVED | PASID_PWT_RESERVED |
+                                                               PASID_PCD_RESERVED);
+
+                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] |= (PASID_SRE_RESERVED | PASID_ERE_RESERVED |
+                                                                   PASID_FLPM_4L | PASID_WPE_RESERVED |
+                                                                   PASID_NXE_RESERVED | PASID_SMPE_RESERVED |
+                                                                   PASID_EAFE_SET);
         }
 
         return 0;

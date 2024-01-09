@@ -54,10 +54,10 @@ struct sm_table_get_zero
 
 #define INDEX_END  0xFF8
 
-#define BUS_NUM  2
-#define DEV_NUM  19  // dev 0-15 use lower context table, dev 16-31 use upper context table
+#define BUS_NUM  0x86
+#define DEV_NUM  0x0  // dev 0-15 use lower context table, dev 16-31 use upper context table
 // #define DEV_NUM  12
-#define FUNC_NUM  1
+#define FUNC_NUM  0
 
 #define ROOT_UP  0x1
 #define ROOT_LP  0x1
@@ -111,6 +111,8 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         if (!need_sm_t)
                 return -1;
 
+        pr_info("*******************************************************************");
+        pr_info("*******************************************************************");
         printk(KERN_ERR "enter get_sm_table_init\n");
         printk("This module will create sm table\n");
         printk(KERN_INFO "__START_KERNEL_map = 0x%llx, PAGE_OFFSET = 0x%llx\n",
@@ -133,11 +135,12 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         printk(KERN_INFO "sm_pasid_t va = 0x%lx, sm_pasid_t pa = 0x%lx\n",
               (u64)(sm_table.sm_pasid_t), virt_to_phys(sm_table.sm_pasid_t));
 
+        pr_info("*******************************************************************");
         pr_info("BUS_NUM = %#X, DEV_NUM = %#x, FUNC_NUM = %#x\n",BUS_NUM, DEV_NUM, FUNC_NUM);
 
         if (DEV_NUM <= 0xF && DEV_NUM >= 0)  // index val 1 means 64bit, offset 0x10, one sm_root_t entry 128bit
         {
-                pr_info("DEV_NUM <= 0xF(15)\n");
+                pr_info("DEV_NUM <= 0xF(15) Using SM Upper Lower Table\n");
                 pr_info("sm_root_t 128bit entry index -- BUS_NUM * 2 = %d, offset=index*8 = %#x\n",
                         BUS_NUM * 2, BUS_NUM * 2 * 8);
                 sm_table.sm_root_t[BUS_NUM * 2] = virt_to_phys(sm_table.sm_context_t) | ROOT_LP;  // SM Root entry UCTP
@@ -147,7 +150,11 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P;
+                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+                                                                        PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256 |
+                                                                        PASID_CONTEXT_RID_PASID_RESERVED |
+                                                                        PASID_CONTEXT_RID_PRIV_RESERVED;
 
                 // sm_context_t entry 256bit
                 // dev 0x0 func 0x0, offset 0x000, index 0
@@ -164,7 +171,7 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         }
         else if (DEV_NUM <=0xFF && DEV_NUM >= 0x10)
         {
-                pr_info("DEV_NUM >= 0x10(16)\n");
+                pr_info("DEV_NUM >= 0x10(16) Using SM Upper Context Table\n");
                 pr_info("sm_root_t 128bit entry index -- BUS_NUM * 2 + 1 = %d, offset=index*8 = %#x\n",
                         BUS_NUM * 2 + 1, (BUS_NUM * 2 + 1) * 8);
                 sm_table.sm_root_t[BUS_NUM * 2 + 1] = virt_to_phys(sm_table.sm_context_t) | ROOT_UP;  // SM Root entry LCTP
@@ -174,7 +181,11 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P;
+                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+                                                                        PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256 |
+                                                                        PASID_CONTEXT_RID_PASID_RESERVED |
+                                                                        PASID_CONTEXT_RID_PRIV_RESERVED;
         }
 
         pr_info("pasid_val = %d", pasid_val);
@@ -227,6 +238,8 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
 
 int __init get_zeroed_page_init(void)
 {
+        pr_info("*******************************************************************");
+        pr_info("*******************************************************************");
         printk(KERN_ERR "enter get_zeroed_page_init\n");
         printk("This module will create all page\n");
         printk(KERN_INFO "__START_KERNEL_map = 0x%llx, PAGE_OFFSET = 0x%llx\n",

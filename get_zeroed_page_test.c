@@ -123,10 +123,10 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         sm_table.sm_pasid_dir_t = (u64 *)get_zeroed_page(GFP_KERNEL);
         sm_table.sm_pasid_t = (u64 *)get_zeroed_page(GFP_KERNEL);
 
-        printk(KERN_INFO "sm_root_t va = 0x%lx, sm_root_t pa = 0x%lx\n",  // not set the sm_root_t pa into RTADDR_REG
-              (u64)(sm_table.sm_root_t), virt_to_phys(sm_table.sm_root_t));  // be sure the TTM=01b(scalable) mode INTO RTADDR_REG
+        printk(KERN_INFO "sm_root_t va = 0x%lx, sm_root_t pa = 0x%lx\n",  // Don't set the sm_root_t pa into RTADDR_REG!!
+              (u64)(sm_table.sm_root_t), virt_to_phys(sm_table.sm_root_t));  // be sure the TTM=01b(scalable mode) into RTADDR_REG!!
 
-        printk(KERN_INFO "sm_context_t va = 0x%lx, sm_context_t pa = 0x%lx\n",  // set the sm_context_t pa into SM Root Table entry
+        printk(KERN_INFO "sm_context_t va = 0x%lx, sm_context_t pa = 0x%lx\n",  // set the sm_context_t pa into SM Root Table entry!!
               (u64)(sm_table.sm_context_t), virt_to_phys(sm_table.sm_context_t));
 
         printk(KERN_INFO "sm_pasid_dir_t va = 0x%lx, sm_pasid_dir_t pa = 0x%lx\n",
@@ -140,7 +140,7 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
 
         if (DEV_NUM <= 0xF && DEV_NUM >= 0)  // index val 1 means 64bit, offset 0x10, one sm_root_t entry 128bit
         {
-                pr_info("DEV_NUM <= 0xF(15) Using SM Upper Lower Table\n");
+                pr_info("DEV_NUM <= 0xF(15) Using SM Lower Table\n");
                 pr_info("sm_root_t 128bit entry index -- BUS_NUM * 2 = %d, offset=index*8 = %#x\n",
                         BUS_NUM * 2, BUS_NUM * 2 * 8);
                 sm_table.sm_root_t[BUS_NUM * 2] = virt_to_phys(sm_table.sm_context_t) | ROOT_LP;  // SM Root entry UCTP

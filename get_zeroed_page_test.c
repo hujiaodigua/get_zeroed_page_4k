@@ -74,6 +74,9 @@ struct sm_table_get_zero
 #define PASID_CONTEXT_RID_PASID_RESERVED  (0 << (64-64))  // request without PASID will use RID_PASID val to walk PASID table
 #define PASID_CONTEXT_RID_PRIV_RESERVED  (0 << (84-64))
 
+#define PASID_CONTEXT_RID_PASID_Set(val)  (val << (64-64))  // test RID_PASID=323
+#define PASID_CONTEXT_RID_PRIV_Set  (1 << (84-64))
+
 #define PASID_DIR_P  0x1
 #define PASID_DIR_FPD_RESERVED  (0 << 1)
 
@@ -105,6 +108,9 @@ struct sm_table_get_zero
 
 // int pasid_val = 257;
 int pasid_val = 323;
+
+int rid_pasid_val = 323;
+// int rid_pasid_val = 0;
 
 int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
 {
@@ -150,11 +156,22 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+
+                if (rid_pasid_val != 0)
+                {
+                        pr_info("set rid_pasid in sm_context_t\n");
+                        sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
                                                                         PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
-                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256 |
-                                                                        PASID_CONTEXT_RID_PASID_RESERVED |
-                                                                        PASID_CONTEXT_RID_PRIV_RESERVED;
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256;
+                        sm_table.sm_context_t[offset_sm_context / 8 + 1] |= PASID_CONTEXT_RID_PASID_Set(rid_pasid_val) |
+                                                                        PASID_CONTEXT_RID_PRIV_RESERVED;  // for test RID_PASID
+                }
+                else if (rid_pasid_val == 0)
+                {
+                        sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+                                                                        PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256;
+                }
 
                 // sm_context_t entry 256bit
                 // dev 0x0 func 0x0, offset 0x000, index 0
@@ -181,11 +198,28 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                         offset_sm_context);
                 pr_info("sm_context_t 256bit entry index -- offset_sm_context / 8 = %d(%#x)\n",
                         offset_sm_context / 8, offset_sm_context / 8);
-                sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+
+                if (rid_pasid_val != 0)
+                {
+                        pr_info("set rid_pasid in sm_context_t\n");
+                        sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
                                                                         PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
-                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256 |
-                                                                        PASID_CONTEXT_RID_PASID_RESERVED |
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256;
+                        sm_table.sm_context_t[offset_sm_context / 8 + 1] |= PASID_CONTEXT_RID_PASID_Set(rid_pasid_val) |
                                                                         PASID_CONTEXT_RID_PRIV_RESERVED;
+                }
+                else if (rid_pasid_val == 0)
+                {
+                        sm_table.sm_context_t[offset_sm_context / 8] = virt_to_phys(sm_table.sm_pasid_dir_t) | PASID_CONTEXT_P |
+                                                                        PASID_CONTEXT_PASIDE | PASID_CONTEXT_DTE_SET |
+                                                                        PASID_CONTEXT_PRE_SET | PASID_CONTEXT_PDTS_256;
+                }
+        }
+
+        if (rid_pasid_val != 0)
+        {
+                pr_info("Used RID PASID, pasid_val=rid_pasid_val=%d\n", rid_pasid_val);
+                pasid_val = rid_pasid_val;
         }
 
         pr_info("pasid_val = %d", pasid_val);

@@ -1,4 +1,4 @@
-obj-m := get_zeroed_page_test.o
+obj-m := neste_get_zeroed_page_test.o
 
 KERNELBUILD := /lib/modules/$(shell uname -r)/build
 CURRENT_PATH := $(shell pwd)

@@ -21,8 +21,8 @@
 #include <linux/intel-svm.h>
 
 MODULE_LICENSE("GPL");
-static int __init get_zeroed_page_init(void);
-static void __exit get_zeroed_page_exit(void);
+static int __init neste_get_zeroed_page_init(void);
+static void __exit neste_get_zeroed_page_exit(void);
 
 /*
 u64 *addr_p4d;
@@ -85,6 +85,7 @@ struct sm_table_get_zero
 #define PASID_AW  (2 << 2)
 #define PASID_SLEE_PREVENTED  (1 << 5)
 #define PASID_PGTT_FL_ONLY  (1 << 6)
+#define PASID_PGTT_NESTED  (3 << 6)
 #define PASID_SLADE  (1 << 9)
 
 #define PASID_DID  (0x18 << (64-64))
@@ -112,7 +113,7 @@ int pasid_val = 323;
 int rid_pasid_val = 323;
 // int rid_pasid_val = 0;
 
-int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
+int __init get_sm_table(int need_sm_t, u64 addr_p4d_val, u64 slptr_val)
 {
         if (!need_sm_t)
                 return -1;
@@ -252,7 +253,16 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
                 // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
                 //                              SLPTR                        FLPTR
                 sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= (PASID_P | PASID_AW | PASID_SLEE_PREVENTED |
-                                                               PASID_PGTT_FL_ONLY | PASID_SLADE);
+                                                               PASID_PGTT_NESTED | PASID_SLADE);
+
+                if (slptr_val != 0x0)
+                {
+                        slptr_val >>= 12;
+                        slptr_val <<= 12;
+                        sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= slptr_val;
+                }
+                else if (slptr_val == 0x0)
+                        pr_info("Becareful!!! slptr_val == 0 in nested test\n");
 
                 sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= PASID_DID;  // DID 0x18 for test
                 //
@@ -270,11 +280,100 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         return 0;
 }
 
-int __init get_zeroed_page_init(void)
+#define PAGE_SET_BIT 0x003
+
+struct page_from_get_zero page_sl;
+
+u64 get_zeroed_page_second_level(void)
 {
         pr_info("*******************************************************************");
         pr_info("*******************************************************************");
-        printk(KERN_ERR "enter get_zeroed_page_init\n");
+        printk(KERN_ERR "enter get_zeroed_page_second_level\n");
+        pr_info("This module will create second level all page\n");
+
+        page_sl.addr_p4d = (u64 *)get_zeroed_page(GFP_KERNEL);
+        page_sl.addr_pud = (u64 ***)get_zeroed_page(GFP_KERNEL);
+        page_sl.addr_p4d[0x888 / 8] = virt_to_phys(page_sl.addr_pud) + PAGE_SET_BIT;  // write pa for nested
+
+        pr_info("sl addr_p4d va = 0x%lx, sl addr_p4d pa = 0x%lx\n",
+                (u64)(page_sl.addr_p4d), virt_to_phys(page_sl.addr_p4d));
+
+        pr_info("sl addr_pud va = 0x%lx, sl addr_pud pa = 0x%lx\n",
+                (u64)(page_sl.addr_pud), virt_to_phys(page_sl.addr_pud));
+
+        printk(KERN_INFO "sl addr_p4d[0x888 / 8] = 0x%lx\n",
+               (page_sl.addr_p4d)[0x888 / 8]);
+
+        u64 i, j, k;
+
+        for (i = 0; i <= INDEX_END / 8; i++)
+        {
+                (page_sl.addr_pud)[i] = (u64 **)get_zeroed_page(GFP_KERNEL);
+                (page_sl.addr_temp_i)[i] = (unsigned long)(page_sl.addr_pud[i]);
+        }
+
+        for (i = 0; i <= INDEX_END / 8; i++)
+        {
+                for (j = 0; j <= INDEX_END / 8; j++)
+                {
+                        (page_sl.addr_pud)[i][j] = (u64 *)get_zeroed_page(GFP_KERNEL);
+                        (page_sl.addr_temp_ij)[i][j] = (unsigned long)(page_sl.addr_pud)[i][j];
+                }
+        }
+
+        for (i = 0; i <= INDEX_END / 8; i++)
+        {
+                for (j = 0; j <= INDEX_END / 8; j++)
+                {
+                        for (k = 0; k <= INDEX_END / 8; k++)
+                        {
+                                (page_sl.addr_pud)[i][j][k] =
+                                        0x888000000000 + (((i * 8) >> 3) << 30) +
+                                        (((j * 8) >> 3) << 21) + (((k * 8) >> 3) << 12)
+                                        -  0x888000000000 + PAGE_SET_BIT; // write pa into pte, in sl, set 4KB page as pa for neste
+
+                                if (i * 8 == 0x40 && j * 8 == 0xb50 && k * 8 == 0x9c0)
+                                {
+                                        printk(KERN_INFO "sl addr_pud[%#lx/8][%#lx/8][%#lx/8]=0x%llx\n",
+                                               i * 8, j * 8, k * 8, (page_sl.addr_pud)[i][j][k]);
+
+                                        if ((page_sl.addr_pud)[i][j][k] != (0x22d538000 + PAGE_SET_BIT))
+                                                printk(KERN_ERR "check your page table value\n");
+
+                                        if ((page_sl.addr_pud)[i][j][k] == (0x22d538000 + PAGE_SET_BIT))
+                                                printk(KERN_INFO "page table seems ok!\n");
+                                }
+                        }
+                }
+        }
+
+        for (i = 0; i<= INDEX_END / 8; i++)
+        {
+                for (j = 0; j<= INDEX_END / 8; j++)
+                {
+                        (page_sl.addr_pud)[i][j] = (u64 *)(virt_to_phys((page.addr_pud)[i][j]) + 0x67);
+                }
+        }
+
+        for (i = 0; i<= INDEX_END / 8; i++)
+        {
+                (page_sl.addr_pud)[i] = (u64 **)(virt_to_phys((page.addr_pud)[i]) + 0x67);
+        }
+
+        printk(KERN_INFO "end get sl addr_p4d\n");
+
+        u64 slptr_val = 0x0;
+
+        slptr_val = virt_to_phys(page_sl.addr_p4d);
+
+        return slptr_val;
+}
+
+int __init neste_get_zeroed_page_init(void)
+{
+        pr_info("*******************************************************************");
+        pr_info("*******************************************************************");
+        printk(KERN_ERR "enter neste_get_zeroed_page_init\n");
         printk("This module will create all page\n");
         printk(KERN_INFO "__START_KERNEL_map = 0x%llx, PAGE_OFFSET = 0x%llx\n",
                __START_KERNEL_map, PAGE_OFFSET);
@@ -298,10 +397,12 @@ int __init get_zeroed_page_init(void)
         printk(KERN_INFO "addr_p4d[0xFFF / 8] = %lx", addr_p4d[0xFFF / 8]);
         */
         page.addr_pud = (u64 ***)get_zeroed_page(GFP_KERNEL);
-        page.addr_p4d[0x888 / 8] = virt_to_phys(page.addr_pud) + 0x67;
+        page.addr_p4d[0x888 / 8] = virt_to_phys(page.addr_pud) + 0x67 + PAGE_OFFSET;  // write va for nested 20240115
 
         printk(KERN_INFO "addr_p4d va = 0x%lx, addr_p4d pa = 0x%lx\n",
                (u64)(page.addr_p4d), virt_to_phys(page.addr_p4d));
+
+        pr_info("Be Attention!!! Nested Translation write addr_p4d va into flptr!!!!\n"); // Be Attention
 
         printk(KERN_INFO "addr_pud va = 0x%lx, addr_pud pa = 0x%lx\n",
                (u64)(page.addr_pud), virt_to_phys(page.addr_pud));
@@ -337,17 +438,17 @@ int __init get_zeroed_page_init(void)
                                 (page.addr_pud)[i][j][k] =
                                         0x888000000000 + (((i * 8) >> 3) << 30) +
                                         (((j * 8) >> 3) << 21) + (((k * 8) >> 3) << 12)
-                                        -  0x888000000000 + 0x67;
+                                        -  0x888000000000 + 0x67 + PAGE_OFFSET;  // write va in pte for nested
 
                                 if (i * 8 == 0x40 && j * 8 == 0xb50 && k * 8 == 0x9c0)
                                 {
                                         printk(KERN_INFO "addr_pud[%#lx/8][%#lx/8][%#lx/8]=0x%llx\n",
                                                i * 8, j * 8, k * 8, (page.addr_pud)[i][j][k]);
 
-                                        if ((page.addr_pud)[i][j][k] != 0x22d538067)
+                                        if ((page.addr_pud)[i][j][k] != (0x22d538067 + PAGE_OFFSET))  // write va test
                                                 printk(KERN_ERR "check your page table value\n");
 
-                                        if ((page.addr_pud)[i][j][k] == 0x22d538067)
+                                        if ((page.addr_pud)[i][j][k] == (0x22d538067 + PAGE_OFFSET))  // write va test
                                                 printk(KERN_INFO "page table seems ok!\n");
                                 }
                         }
@@ -377,24 +478,26 @@ int __init get_zeroed_page_init(void)
         {
                 for (j = 0; j<= INDEX_END / 8; j++)
                 {
-                        (page.addr_pud)[i][j] = (u64 *)(virt_to_phys((page.addr_pud)[i][j]) + 0x67);
+                        (page.addr_pud)[i][j] = (u64 *)(virt_to_phys((page.addr_pud)[i][j]) + 0x67 + PAGE_OFFSET);  // write va for nested
                 }
         }
         for (i = 0; i<= INDEX_END / 8; i++)
         {
-                (page.addr_pud)[i] = (u64 **)(virt_to_phys((page.addr_pud)[i]) + 0x67);
+                (page.addr_pud)[i] = (u64 **)(virt_to_phys((page.addr_pud)[i]) + 0x67 + PAGE_OFFSET);  // write va for nested
         }
 
         printk(KERN_INFO "end get addr_p4d\n");
 
+        u64 slptr_pa = get_zeroed_page_second_level();
+
         int need_sm_t = 1;
-        if (get_sm_table(need_sm_t, virt_to_phys(page.addr_p4d)));
+        if (get_sm_table(need_sm_t, virt_to_phys(page.addr_p4d) + PAGE_OFFSET, slptr_pa));  // write va for nested
             printk(KERN_INFO "end get sm table\n");
 
         return 0;
 }
 
-void __exit get_zeroed_page_exit(void)
+void __exit neste_get_zeroed_page_exit(void)
 {
         /*
         if(addr != NULL)
@@ -442,5 +545,5 @@ void __exit get_zeroed_page_exit(void)
         printk(KERN_ERR "exit! \n");
 }
 
-module_init(get_zeroed_page_init);
-module_exit(get_zeroed_page_exit);
+module_init(neste_get_zeroed_page_init);
+module_exit(neste_get_zeroed_page_exit);

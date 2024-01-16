@@ -519,6 +519,7 @@ void __exit neste_get_zeroed_page_exit(void)
                         // free_page((unsigned long)addr_pud[i][j]);
                         // temp_addr = ((unsigned long)addr_pud[0][0]) + PAGE_OFFSET - 0x67;
                         free_page((page.addr_temp_ij)[i][j]);
+                        free_page((page_sl.addr_temp_ij[i][j]));
                 }
         }
         printk(KERN_ERR "free ij\n");
@@ -530,12 +531,16 @@ void __exit neste_get_zeroed_page_exit(void)
                 // free_page((unsigned long)addr_pud[i]);
                 // temp_addr = ((unsigned long)addr_pud[0]) + PAGE_OFFSET - 0x67;
                 free_page((page.addr_temp_i)[i]);
+                free_page((page_sl.addr_temp_i)[i]);
         }
         printk(KERN_ERR "free i\n");
 
         free_page((unsigned long)(page.addr_pud));
         free_page((unsigned long)(page.addr_p4d));
         // free_pages((unsigned long)addr_s_1 ,10);
+
+        free_page((unsigned long)(page_sl.addr_pud));
+        free_page((unsigned long)(page_sl.addr_p4d));
 
         free_page((unsigned long)(sm_table.sm_root_t));
         free_page((unsigned long)(sm_table.sm_context_t));

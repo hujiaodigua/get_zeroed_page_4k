@@ -52,12 +52,19 @@ struct sm_table_get_zero
         u64 *sm_pasid_t;
 }sm_table;
 
+static int bus = 0x0;
+static int dev = 0x0;
+static int func = 0x0;
+module_param(bus, int, S_IRUSR);
+module_param(dev, int, S_IRUSR);
+module_param(func, int, S_IRUSR);
+
 #define INDEX_END  0xFF8
 
-#define BUS_NUM  0x86
-#define DEV_NUM  0x0  // dev 0-15 use lower context table, dev 16-31 use upper context table
+#define BUS_NUM  (bus)// 0x86
+#define DEV_NUM  (dev)// 0x10  // dev 0-15 use lower context table, dev 16-31 use upper context table
 // #define DEV_NUM  12
-#define FUNC_NUM  0
+#define FUNC_NUM  (func)// 0x1
 
 #define ROOT_UP  0x1
 #define ROOT_LP  0x1
@@ -106,11 +113,15 @@ struct sm_table_get_zero
 #define PASID_EAFE_SET  (1 << (135-128))
 
 
+static int pasid;
+static int rid_pasid;
+module_param(pasid, int, S_IRUSR);
+module_param(rid_pasid, int, S_IRUSR);
 
 // int pasid_val = 257;
-int pasid_val = 323;
+#define pasid_val (pasid)// int pasid_val = 323;
 
-int rid_pasid_val = 323;
+#define rid_pasid_val (rid_pasid)// int rid_pasid_val = 323;
 // int rid_pasid_val = 0;
 
 int __init get_sm_table(int need_sm_t, u64 addr_p4d_val, u64 slptr_val)
@@ -351,13 +362,13 @@ u64 get_zeroed_page_second_level(void)
         {
                 for (j = 0; j<= INDEX_END / 8; j++)
                 {
-                        (page_sl.addr_pud)[i][j] = (u64 *)(virt_to_phys((page.addr_pud)[i][j]) + 0x67);
+                        (page_sl.addr_pud)[i][j] = (u64 *)(virt_to_phys((page_sl.addr_pud)[i][j]) + PAGE_SET_BIT);
                 }
         }
 
         for (i = 0; i<= INDEX_END / 8; i++)
         {
-                (page_sl.addr_pud)[i] = (u64 **)(virt_to_phys((page.addr_pud)[i]) + 0x67);
+                (page_sl.addr_pud)[i] = (u64 **)(virt_to_phys((page_sl.addr_pud)[i]) + PAGE_SET_BIT);
         }
 
         printk(KERN_INFO "end get sl addr_p4d\n");

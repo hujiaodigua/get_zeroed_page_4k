@@ -92,6 +92,7 @@ module_param(func, int, S_IRUSR);
 #define PASID_AW  (2 << 2)
 #define PASID_SLEE_PREVENTED  (1 << 5)
 #define PASID_PGTT_FL_ONLY  (1 << 6)
+#define PASID_PGTT_SL_ONLY  (1 << 7)
 #define PASID_SLADE  (1 << 9)
 
 #define PASID_DID  (0x18 << (64-64))
@@ -116,6 +117,9 @@ static int pasid = 0x0;
 static int rid_pasid = 0x0;
 module_param(pasid, int, S_IRUSR);
 module_param(rid_pasid, int, S_IRUSR);
+
+static int pgtt = 0x0;
+module_param(pgtt, int, S_IRUSR);
 
 // int pasid_val = 257;
 #define pasid_val (pasid)// int pasid_val = 323;
@@ -259,11 +263,28 @@ int __init get_sm_table(int need_sm_t, u64 addr_p4d_val)
         {
                 pr_info("sm_pasid_t 512bit index -- pasid_val_0_5 * 8 = %d, offset=index*8=%#x\n",
                         pasid_val_0_5 * 8, pasid_val_0_5 * 8 * 8);
-                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] = addr_p4d_val;  // *8 maybe pass
-                // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
-                //                              SLPTR                        FLPTR
-                sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= (PASID_P | PASID_AW | PASID_SLEE_PREVENTED |
-                                                               PASID_PGTT_FL_ONLY | PASID_SLADE);
+
+                if (pgtt == 1)
+                {
+                        sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1 + 1] = addr_p4d_val;  // *8 maybe pass
+                        // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
+                        //                              SLPTR                        FLPTR
+                        sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= (PASID_P | PASID_AW | PASID_SLEE_PREVENTED |
+                                                                        PASID_PGTT_FL_ONLY | PASID_SLADE);
+                }
+                else if (pgtt == 2)
+                {
+                        sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] = addr_p4d_val;  // *8 maybe pass
+                        // one sm_pasid_t entry 512bit, 0: 0-63bit, 1: 64-127bit, 2: 128-191bit
+                        //                              SLPTR                        FLPTR
+                        sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 0] |= (PASID_P | PASID_AW |
+                                                                        PASID_PGTT_SL_ONLY | PASID_SLADE);
+                }
+                else if (pgtt == 0)
+                {
+                        pr_info("!!not input pgtt!!");
+                        return 0;
+                }
 
                 sm_table.sm_pasid_t[pasid_val_0_5 * 8 + 1] |= PASID_DID;  // DID 0x18 for test
                 //
